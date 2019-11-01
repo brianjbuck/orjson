@@ -182,3 +182,21 @@ class TypeTests(unittest.TestCase):
 
         with self.assertRaises(orjson.JSONEncodeError):
             orjson.dumps(ref, default=default)
+
+    def test_default_recursion_user_defined(self):
+        """
+        dumps() with default function and user defined recursion limit
+        """
+        self.assertEqual(
+            orjson.dumps(Recursive(10), default=default, max_default_recursion=10),
+            b"0",
+        )
+
+    def test_default_recursion_over_user_defined(self):
+        """
+        dumps() with default function and user defined recursion limit still
+        raises JSONEncodeError
+        """
+
+        with self.assertRaises(orjson.JSONEncodeError):
+            orjson.dumps(Recursive(11), default=default, max_default_recursion=10)

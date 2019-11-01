@@ -87,6 +87,7 @@ pub fn dumps(
     obj: PyObject,
     default: Option<PyObject>,
     option: Option<PyObject>,
+    max_default_recursion: Option<PyObject>,
 ) -> PyResult<PyObject> {
     let pydef: Option<NonNull<pyo3::ffi::PyObject>>;
     if let Some(value) = default {
@@ -109,7 +110,16 @@ pub fn dumps(
     } else {
         optsbits = 0
     };
-    match encode::serialize(obj.as_ptr(), pydef, optsbits as u8) {
+
+    let max_default_recursion_depth: u8;
+    if let Some(value) = max_default_recursion {
+        let recursion_ptr = value.as_ptr();
+        max_default_recursion_depth = ffi!(PyLong_AsLong(recursion_ptr)) as u8;
+    } else {
+        max_default_recursion_depth = 5
+    };
+
+    match encode::serialize(obj.as_ptr(), pydef, optsbits as u8, max_default_recursion_depth) {
         Ok(val) => unsafe { Ok(PyObject::from_owned_ptr(py, val.as_ptr())) },
         Err(err) => Err(err),
     }

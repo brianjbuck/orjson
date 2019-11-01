@@ -34,6 +34,7 @@ pub fn serialize(
     ptr: *mut pyo3::ffi::PyObject,
     default: Option<NonNull<pyo3::ffi::PyObject>>,
     opts: u8,
+    max_default_recursion: u8,
 ) -> PyResult<NonNull<pyo3::ffi::PyObject>> {
     let mut buf: Vec<u8> = Vec::with_capacity(1024);
     match serde_json::to_writer(
@@ -44,6 +45,7 @@ pub fn serialize(
             opts,
             default_calls: 0,
             recursion: 0,
+            max_default_recursion_depth: max_default_recursion,
         },
     ) {
         Ok(_) => Ok(unsafe {
@@ -62,6 +64,7 @@ struct SerializePyObject {
     opts: u8,
     default_calls: u8,
     recursion: u8,
+    max_default_recursion_depth: u8,
 }
 
 impl<'p> Serialize for SerializePyObject {
@@ -104,6 +107,7 @@ impl<'p> Serialize for SerializePyObject {
                         opts: self.opts,
                         default_calls: self.default_calls,
                         recursion: self.recursion + 1,
+                        max_default_recursion_depth: self.max_default_recursion_depth,
                     })?
                 }
                 seq.end()
@@ -135,6 +139,7 @@ impl<'p> Serialize for SerializePyObject {
                         opts: self.opts,
                         default_calls: self.default_calls,
                         recursion: self.recursion + 1,
+                        max_default_recursion_depth: self.max_default_recursion_depth,
                     },
                 )?;
             }
@@ -159,6 +164,7 @@ impl<'p> Serialize for SerializePyObject {
                         opts: self.opts,
                         default_calls: self.default_calls,
                         recursion: self.recursion,
+                        max_default_recursion_depth: self.max_default_recursion_depth,
                     })?
                 }
                 seq.end()
@@ -219,12 +225,13 @@ impl<'p> Serialize for SerializePyObject {
                             opts: self.opts,
                             default_calls: self.default_calls,
                             recursion: self.recursion + 1,
+                            max_default_recursion_depth: self.max_default_recursion_depth
                         },
                     )?;
                 }
                 map.end()
             } else if self.default.is_some() {
-                if self.default_calls > 5 {
+                if self.default_calls > self.max_default_recursion_depth  {
                     err!("default serializer exceeds recursion limit")
                 } else {
                     let default_obj = unsafe {
@@ -241,6 +248,7 @@ impl<'p> Serialize for SerializePyObject {
                             opts: self.opts,
                             default_calls: self.default_calls + 1,
                             recursion: self.recursion,
+                            max_default_recursion_depth: self.max_default_recursion_depth,
                         }
                         .serialize(serializer);
                         ffi!(Py_DECREF(default_obj));

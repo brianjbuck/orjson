@@ -6,6 +6,7 @@ def dumps(
     __obj: Any,
     default: Optional[Callable[[Any], Any]] = ...,
     option: Optional[int] = ...,
+    max_default_recursion: int = 5,
 ) -> bytes: ...
 def loads(__obj: Union[bytes, bytearray, str]) -> Any: ...
 
